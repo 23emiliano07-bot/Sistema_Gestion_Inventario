@@ -1,3 +1,43 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
+from rest_framework import viewsets, status
+from rest_framework.response import Response
 
-# Create your views here.
+from .models import Producto
+from .dao.producto_dao import ProductoDAO
+from .serializers import ProductoSerializer
+from .forms import ProductoForm
+
+# VISTAS WEB
+def listar_productos(request):
+    productos = ProductoDAO.obtener_todos()
+    return render(request, 'productos/listar.html', {'productos': productos})
+
+def crear_producto(request):
+    if request.method == 'POST':
+        form = ProductoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('listar_productos')
+    else:
+        form = ProductoForm()
+    return render(request, 'productos/crear.html', {'form': form})
+
+def editar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, instance=producto)
+        if form.is_valid():
+            form.save()
+            return redirect('listar_productos')
+    else:
+        form = ProductoForm(instance=producto)
+    return render(request, 'productos/editar.html', {'form': form, 'producto': producto})
+
+def desactivar_producto(request, producto_id):
+    ProductoDAO.desactivar_producto(producto_id)
+    return redirect('listar_productos')
+
+# API REST
+class ProductoViewSet(viewsets.ModelViewSet):
+    queryset = Producto.objects.all()
+    serializer_class = ProductoSerializer
