@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from .models import Proveedor
-from .dao.proveedor_dao import ProveedorDAO
+# TODO: Resolver import circular - from .dao.proveedor_dao import ProveedorDAO
 from .serializers import ProveedorSerializer
 from .forms import ProveedorForm
 
@@ -14,8 +14,8 @@ from .forms import ProveedorForm
 
 def listar_proveedores(request):
     """Lista todos los proveedores activos"""
-    proveedores = ProveedorDAO.obtener_todos_proveedores()
-    return render(request, 'proveedores/listar.html', {'proveedores': proveedores})
+    proveedores = Proveedor.objects.filter(activo=True)
+    return render(request, 'proveedores_list.html', {'proveedores': proveedores})
 
 def crear_proveedor(request):
     """Crear un nuevo proveedor"""
@@ -26,7 +26,7 @@ def crear_proveedor(request):
             return redirect('listar_proveedores')
     else:
         form = ProveedorForm()
-    return render(request, 'proveedores/crear.html', {'form': form})
+    return render(request, 'proveedores_form.html', {'form': form})
 
 def editar_proveedor(request, proveedor_id):
     """Editar un proveedor existente"""
@@ -38,11 +38,13 @@ def editar_proveedor(request, proveedor_id):
             return redirect('listar_proveedores')
     else:
         form = ProveedorForm(instance=proveedor)
-    return render(request, 'proveedores/editar.html', {'form': form, 'proveedor': proveedor})
+    return render(request, 'proveedores_form.html', {'form': form, 'proveedor': proveedor})
 
 def desactivar_proveedor(request, proveedor_id):
     """Desactivar un proveedor"""
-    ProveedorDAO.desactivar_proveedor(proveedor_id)
+    proveedor = get_object_or_404(Proveedor, id=proveedor_id)
+    proveedor.activo = False
+    proveedor.save()
     return redirect('listar_proveedores')
 
 # ============================================
@@ -56,7 +58,7 @@ class ProveedorViewSet(viewsets.ModelViewSet):
     
     def list(self, request, *args, **kwargs):
         """GET /api/proveedores/ - Listar todos"""
-        proveedores = ProveedorDAO.obtener_todos_proveedores()
+        proveedores = Proveedor.objects.filter(activo=True)
         serializer = self.get_serializer(proveedores, many=True)
         return Response(serializer.data)
     

@@ -1,4 +1,4 @@
-from .models import Producto
+from ..models import Producto
 
 class ProductoDAO:
     """DAO para Productos"""

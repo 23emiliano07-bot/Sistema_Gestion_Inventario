@@ -7,7 +7,7 @@ from .forms import PedidoForm
 
 def listar_pedidos(request):
     pedidos = Pedido.objects.all()
-    return render(request, 'pedidos/listar.html', {'pedidos': pedidos})
+    return render(request, 'pedidos_list.html', {'pedidos': pedidos})
 
 def crear_pedido(request):
     if request.method == 'POST':
@@ -17,7 +17,7 @@ def crear_pedido(request):
             return redirect('listar_pedidos')
     else:
         form = PedidoForm()
-    return render(request, 'pedidos/crear.html', {'form': form})
+    return render(request, 'pedidos_form.html', {'form': form})
 
 def editar_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
@@ -28,7 +28,7 @@ def editar_pedido(request, pedido_id):
             return redirect('listar_pedidos')
     else:
         form = PedidoForm(instance=pedido)
-    return render(request, 'pedidos/editar.html', {'form': form, 'pedido': pedido})
+    return render(request, 'pedidos_form.html', {'form': form, 'pedido': pedido})
 
 class PedidoViewSet(viewsets.ModelViewSet):
     queryset = Pedido.objects.all()

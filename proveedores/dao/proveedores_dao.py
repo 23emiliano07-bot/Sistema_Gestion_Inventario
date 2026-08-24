@@ -1,4 +1,4 @@
-from .models import Proveedor
+from ..models import Proveedor
 
 class ProveedorDAO:
     """
