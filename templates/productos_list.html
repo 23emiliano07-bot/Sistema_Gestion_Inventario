@@ -29,7 +29,7 @@
             <td>${{ producto.precio }}</td>
             <td>
                 <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning">Editar</a>
-                <a href="{% url 'eliminar_producto' producto.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                <a href="{% url 'desactivar_producto' producto.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Desactivar?')">Desactivar</a>
             </td>
         </tr>
         {% endfor %}

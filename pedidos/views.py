@@ -30,6 +30,11 @@ def editar_pedido(request, pedido_id):
         form = PedidoForm(instance=pedido)
     return render(request, 'pedidos_form.html', {'form': form, 'pedido': pedido})
 
+def eliminar_pedido(request, pedido_id):
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+    pedido.delete()
+    return redirect('listar_pedidos')
+
 class PedidoViewSet(viewsets.ModelViewSet):
     queryset = Pedido.objects.all()
     serializer_class = PedidoSerializer

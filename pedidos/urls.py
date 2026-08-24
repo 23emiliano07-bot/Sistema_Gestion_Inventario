@@ -11,4 +11,5 @@ urlpatterns = [
     path('crear/', views.crear_pedido, name='crear_pedido'),
     path('<int:pedido_id>/editar/', views.editar_pedido, name='editar_pedido'),
     path('', include(router.urls)),
+    path('<int:pedido_id>/eliminar/', views.eliminar_pedido, name='eliminar_pedido'),
 ]

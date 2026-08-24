@@ -30,6 +30,11 @@ def editar_usuario(request, usuario_id):
         form = UsuarioForm(instance=usuario)
     return render(request, 'usuarios_form.html', {'form': form, 'usuario': usuario})
 
+def eliminar_usuario(request, usuario_id):
+    usuario = get_object_or_404(Usuario, id=usuario_id)
+    usuario.delete()
+    return redirect('listar_usuarios')
+
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
