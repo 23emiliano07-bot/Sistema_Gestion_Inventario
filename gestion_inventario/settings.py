@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'gestion_inventario.middleware.AuditoriaMiddleware',  # Middleware de auditoría
 ]
 
 ROOT_URLCONF = 'gestion_inventario.urls'
