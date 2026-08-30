@@ -17,12 +17,18 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
-    path('', TemplateView.as_view(template_name='base.html'), name='home'),  # ← AGREGAR ESTO
+    path('', TemplateView.as_view(template_name='base.html'), name='home'),
     path('admin/', admin.site.urls),
     path('proveedores/', include('proveedores.urls')),
     path('productos/', include('productos.urls')),
     path('usuarios/', include('usuarios.urls')),
     path('pedidos/', include('pedidos.urls')),
 ]
+
+# Servir archivos media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
