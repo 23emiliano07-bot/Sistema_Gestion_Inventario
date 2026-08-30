@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
 
 from .models import Proveedor
 # TODO: Resolver import circular - from .dao.proveedor_dao import ProveedorDAO
@@ -12,11 +14,15 @@ from .forms import ProveedorForm
 # 1. VISTAS WEB (HTML)
 # ============================================
 
+@login_required(login_url='admin:login')
+@permission_required('proveedores.view_proveedor', raise_exception=True)
 def listar_proveedores(request):
     """Lista todos los proveedores activos"""
     proveedores = Proveedor.objects.filter(activo=True)
     return render(request, 'proveedores_list.html', {'proveedores': proveedores})
 
+@login_required(login_url='admin:login')
+@permission_required('proveedores.add_proveedor', raise_exception=True)
 def crear_proveedor(request):
     """Crear un nuevo proveedor"""
     if request.method == 'POST':
@@ -28,6 +34,8 @@ def crear_proveedor(request):
         form = ProveedorForm()
     return render(request, 'proveedores_form.html', {'form': form})
 
+@login_required(login_url='admin:login')
+@permission_required('proveedores.change_proveedor', raise_exception=True)
 def editar_proveedor(request, proveedor_id):
     """Editar un proveedor existente"""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
@@ -40,6 +48,8 @@ def editar_proveedor(request, proveedor_id):
         form = ProveedorForm(instance=proveedor)
     return render(request, 'proveedores_form.html', {'form': form, 'proveedor': proveedor})
 
+@login_required(login_url='admin:login')
+@permission_required('proveedores.change_proveedor', raise_exception=True)
 def desactivar_proveedor(request, proveedor_id):
     """Desactivar un proveedor"""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
@@ -55,6 +65,7 @@ class ProveedorViewSet(viewsets.ModelViewSet):
     """API REST para Proveedores"""
     queryset = Proveedor.objects.all()
     serializer_class = ProveedorSerializer
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
     
     def list(self, request, *args, **kwargs):
         """GET /api/proveedores/ - Listar todos"""
