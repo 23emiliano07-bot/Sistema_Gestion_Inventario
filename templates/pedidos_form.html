@@ -34,6 +34,44 @@
     </div>
 </form>
 
+{% if form.instance.pk %}
+<hr>
+<h3 class="mt-4">📦 Productos del Pedido</h3>
+
+{% if detalles %}
+<table class="table table-striped mt-3">
+    <thead class="table-dark">
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+            <th>Subtotal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for detalle in detalles %}
+        <tr>
+            <td>{{ detalle.producto.nombre }}</td>
+            <td>{{ detalle.cantidad }}</td>
+            <td>${{ detalle.precio_unitario }}</td>
+            <td><strong>${{ detalle.subtotal }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="alert alert-info mt-3">
+    <strong>Total del Pedido: ${{ form.instance.total }}</strong>
+</div>
+
+<a href="/admin/pedidos/pedido/{{ form.instance.id }}/change/" class="btn btn-primary mt-3" target="_blank">➕ Agregar Productos</a>
+{% else %}
+<div class="alert alert-warning mt-3">
+    No hay productos en este pedido. <a href="/admin/pedidos/pedido/{{ form.instance.id }}/change/" target="_blank">Agrega productos desde el Admin</a>.
+</div>
+{% endif %}
+{% endif %}
+
 <style>
     input, select, textarea { width: 100%; padding: 0.5rem; }
 </style>

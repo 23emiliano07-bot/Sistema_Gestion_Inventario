@@ -11,11 +11,7 @@ class Pedido(models.Model):
     ]
     
     numero_pedido = models.CharField(max_length=50, unique=True)
-    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    cantidad = models.IntegerField()
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    total = models.DecimalField(max_digits=12, decimal_places=2)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='pedidos')
     estado = models.CharField(max_length=50, choices=ESTADOS, default='pendiente')
     fecha_pedido = models.DateTimeField(auto_now_add=True)
     fecha_entrega = models.DateField(blank=True, null=True)
@@ -26,6 +22,29 @@ class Pedido(models.Model):
     
     def __str__(self):
         return f"{self.numero_pedido} - {self.proveedor.nombre}"
+    
+    @property
+    def total(self):
+        """Calcula el total sumando todos los detalles"""
+        return sum(detalle.subtotal for detalle in self.detalles.all())
+
+class DetallesPedido(models.Model):
+    """Relación entre Pedido y Producto (permite múltiples productos por pedido)"""
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='detalles')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    class Meta:
+        verbose_name_plural = "Detalles de Pedidos"
+    
+    @property
+    def subtotal(self):
+        """Calcula el subtotal de este detalle"""
+        return self.cantidad * self.precio_unitario
+    
+    def __str__(self):
+        return f"{self.pedido.numero_pedido} - {self.producto.nombre}"
 
 class BackOrder(models.Model):
     """Para productos pendientes"""

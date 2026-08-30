@@ -28,7 +28,13 @@ def editar_pedido(request, pedido_id):
             return redirect('listar_pedidos')
     else:
         form = PedidoForm(instance=pedido)
-    return render(request, 'pedidos_form.html', {'form': form, 'pedido': pedido})
+    
+    detalles = pedido.detalles.all()
+    return render(request, 'pedidos_form.html', {
+        'form': form, 
+        'pedido': pedido,
+        'detalles': detalles
+    })
 
 def eliminar_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
