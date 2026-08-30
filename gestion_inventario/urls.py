@@ -20,6 +20,11 @@ from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
 
+# Personalizar admin
+admin.site.site_header = "Administración - Sistema de Gestión de Inventario"
+admin.site.site_title = "Inventario Emi"
+admin.site.index_title = "Bienvenido al Panel de Administración"
+
 urlpatterns = [
     path('', TemplateView.as_view(template_name='base.html'), name='home'),
     path('admin/', admin.site.urls),
