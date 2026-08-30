@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+{% load admin_urls static %}
+
+{% block extrastyle %}
+  <link rel="stylesheet" href="{% static 'admin/css/forms.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <h1>Importar Productos (CSV)</h1>
+  
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <div class="form-row">
+      <div>
+        {{ form.csv_file.label_tag }}
+        {{ form.csv_file }}
+        {% if form.csv_file.errors %}
+          <p class="help">{{ form.csv_file.errors }}</p>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="submit-row">
+      <input type="submit" value="Importar" class="default">
+      <a href="../" class="button cancel-link">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

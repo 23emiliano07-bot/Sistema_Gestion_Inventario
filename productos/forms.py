@@ -36,15 +36,18 @@ class ProductoForm(forms.ModelForm):
             raise forms.ValidationError('El nombre debe tener al menos 3 caracteres.')
         return nombre
     
+
     def clean_imagen(self):
-        """Valida el archivo de imagen"""
-        imagen = self.cleaned_data.get('imagen')
-        if imagen:
-            # Validar tamaño (máximo 5MB)
-            if imagen.size > 5 * 1024 * 1024:
-                raise forms.ValidationError('La imagen no debe exceder 5MB.')
-            # Validar formato
-            formatos_permitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-            if imagen.content_type not in formatos_permitidos:
+         """Valida el archivo de imagen"""
+         imagen = self.cleaned_data.get('imagen')
+         if imagen:
+             # Validar tamaño (máximo 5MB)
+             if imagen.size > 5 * 1024 * 1024:
+                 raise forms.ValidationError('La imagen no debe exceder 5MB.')
+        
+             # Validar formato por extensión
+             extensiones_permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+             ext = imagen.name.split('.')[-1].lower()
+             if ext not in extensiones_permitidas:
                 raise forms.ValidationError('Solo se permiten imágenes JPG, PNG, GIF o WEBP.')
-        return imagen
+         return imagen
