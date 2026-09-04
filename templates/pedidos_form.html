@@ -6,68 +6,174 @@
 
 <form method="post" class="mt-4">
     {% csrf_token %}
+    
+    <!-- Proveedor y Estado -->
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor</label>
+            {% if form.instance.pk and form.instance.estado != 'pendiente' %}
+                <input type="text" class="form-control" value="{{ form.instance.proveedor }}" readonly>
+            {% else %}
+                {{ form.proveedor }}
+            {% endif %}
+            {% if form.instance.pk and form.instance.estado != 'pendiente' %}
+                <input type="hidden" name="proveedor" value="{{ form.instance.proveedor.id }}">
+                <input type="hidden" name="proveedor" value="{{ form.instance.proveedor.id }}">
+            {% endif %}
+        </div>
+        
+        <div class="col-md-6 mb-3">
+    <label for="{{ form.estado.id_for_label }}" class="form-label">Estado</label>
+    {% if form.instance.pk and form.instance.estado == 'entregado' %}
+        <input type="text" class="form-control" value="{{ form.instance.get_estado_display }}" readonly>
+        <input type="hidden" name="estado" value="{{ form.instance.estado }}">
+    {% else %}
+        {{ form.estado }}
+    {% endif %}
+</div>
+
+    <!-- Número Pedido -->
     <div class="mb-3">
-        <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor</label>
-        {{ form.proveedor }}
-        {% if form.proveedor.errors %}<div class="text-danger small">{{ form.proveedor.errors }}</div>{% endif %}
+        <label for="{{ form.numero_pedido.id_for_label }}" class="form-label">Número Pedido</label>
+        {% if form.instance.pk and form.instance.estado != 'pendiente' %}
+            <input type="text" class="form-control" value="{{ form.instance.numero_pedido }}" readonly>
+            <input type="hidden" name="numero_pedido" value="{{ form.instance.numero_pedido }}">
+        {% else %}
+            {{ form.numero_pedido }}
+        {% endif %}
+        {% if form.instance.pk and form.instance.estado != 'pendiente' %}
+            <input type="hidden" name="numero_pedido" value="{{ form.instance.numero_pedido }}">
+        {% endif %}
+    </div>
+
+    <!-- Orden Compra y Orden Venta -->
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Orden de Compra</label>
+        {% if not form.instance.pk or form.instance.estado == 'pendiente' %}
+            <input type="text" class="form-control" placeholder="Se habilitará en Confirmado" disabled>
+        {% elif form.instance.pk and form.instance.estado == 'confirmado' %}
+            {{ form.orden_compra }}
+        {% else %}
+            <input type="text" class="form-control" value="{{ form.instance.orden_compra|default:'' }}" readonly>
+            <input type="hidden" name="orden_compra" value="{{ form.instance.orden_compra|default:'' }}">
+        {% endif %}
     </div>
     
-    <div class="mb-3">
-        <label for="{{ form.estado.id_for_label }}" class="form-label">Estado</label>
-        {{ form.estado }}
-        {% if form.estado.errors %}<div class="text-danger small">{{ form.estado.errors }}</div>{% endif %}
-    </div>
-
-    {% for field in form %}
-        {% if field.name not in 'proveedor,estado,id' %}
-        <div class="mb-3">
-            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
-        </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Orden de Venta</label>
+        {% if not form.instance.pk or form.instance.estado == 'pendiente' %}
+            <input type="text" class="form-control" placeholder="Se habilitará en Confirmado" disabled>
+        {% elif form.instance.pk and form.instance.estado == 'confirmado' %}
+            {{ form.orden_venta }}
+        {% else %}
+            <input type="text" class="form-control" value="{{ form.instance.orden_venta|default:'' }}" readonly>
+            <input type="hidden" name="orden_venta" value="{{ form.instance.orden_venta|default:'' }}">
         {% endif %}
-    {% endfor %}
-
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-success">💾 Guardar</button>
-        <a href="{% url 'listar_pedidos' %}" class="btn btn-secondary">❌ Cancelar</a>
     </div>
-</form>
+</div>
+    
 
+
+   <!-- Responsable -->
+<div class="mb-3">
+    <label class="form-label">Responsable</label>
+    {% if not form.instance.pk or form.instance.estado in 'pendiente,confirmado' %}
+        <input type="text" class="form-control" placeholder="Se habilitará en Solicitado" disabled>
+    {% elif form.instance.pk and form.instance.estado == 'solicitado' %}
+        {{ form.responsable }}
+    {% elif form.instance.pk and form.instance.estado == 'entregado' %}
+        <input type="text" class="form-control" value="{{ form.instance.responsable }}" readonly>
+        <input type="hidden" name="responsable" value="{{ form.instance.responsable.id|default:'' }}">
+    {% else %}
+        {{ form.responsable }}
+    {% endif %}
+</div>
+    
+
+    <!-- Notas -->
+    <div class="mb-3">
+        <label for="{{ form.notas.id_for_label }}" class="form-label">Notas</label>
+        {{ form.notas }}
+    </div>
+
+    <!-- Botones -->
+<div class="d-flex gap-2">
+    <button type="submit" class="btn btn-success">💾 Guardar</button>
+    <a href="{% url 'listar_pedidos' %}" class="btn btn-secondary">❌ Cancelar</a>
+    
+</div>
+
+<!-- TABLA DE PRODUCTOS (SOLO SI PEDIDO EXISTE) -->
 {% if form.instance.pk %}
 <hr>
 <h3 class="mt-4">📦 Productos del Pedido</h3>
 
 {% if detalles %}
-<table class="table table-striped mt-3">
-    <thead class="table-dark">
-        <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio Unitario</th>
-            <th>Subtotal</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for detalle in detalles %}
-        <tr>
-            <td>{{ detalle.producto.nombre }}</td>
-            <td>{{ detalle.cantidad }}</td>
-            <td>${{ detalle.precio_unitario }}</td>
-            <td><strong>${{ detalle.subtotal }}</strong></td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-responsive">
+    <table class="table table-striped mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>No</th>
+                <th>Producto</th>
+                <th>Almacén</th>
+                <th>Total a Pedir</th>
+                {% if form.instance.estado == 'entregado' %}
+                    <th>Recibido</th>
+                    <th>Pendiente</th>
+                    <th>Folio de Factura</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for detalle in detalles %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ detalle.producto.nombre }}</td>   
+                <td>{{ detalle.almacen.nombre }}</td>
+                <td>{{ detalle.cantidad }}</td>
 
-<div class="alert alert-info mt-3">
-    <strong>Total del Pedido: ${{ form.instance.total }}</strong>
+
+ {% if form.instance.estado == 'entregado' %}
+    {% if detalle.pendiente > 0 %}
+        <!-- Fila EDITABLE si pendiente > 0 -->
+        <td>
+            <input type="number" name="recibido_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.recibido }}" min="0">
+        </td>
+        <td>
+            <input type="number" name="pendiente_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.pendiente }}" min="0">
+        </td>
+        <td>
+            <input type="text" name="folio_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.folio_factura|default:'' }}">
+        </td>
+    {% else %}
+        <!-- Fila READONLY si pendiente = 0 -->
+        <td>
+            <input type="number" class="form-control form-control-sm" value="{{ detalle.recibido }}" readonly>
+            <input type="hidden" name="recibido_{{ detalle.id }}" value="{{ detalle.recibido }}">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" value="{{ detalle.pendiente }}" readonly>
+            <input type="hidden" name="pendiente_{{ detalle.id }}" value="{{ detalle.pendiente }}">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" value="{{ detalle.folio_factura|default:'' }}" readonly>
+            <input type="hidden" name="folio_{{ detalle.id }}" value="{{ detalle.folio_factura|default:'' }}">
+        </td>
+    {% endif %}
+{% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
-
+{% if form.instance.estado == 'pendiente' %}
 <a href="/admin/pedidos/pedido/{{ form.instance.id }}/change/" class="btn btn-primary mt-3" target="_blank">➕ Agregar Productos</a>
+{% endif %}
+
 {% else %}
 <div class="alert alert-warning mt-3">
-    No hay productos en este pedido. <a href="/admin/pedidos/pedido/{{ form.instance.id }}/change/" target="_blank">Agrega productos desde el Admin</a>.
+    No hay productos en este pedido. Guarda primero para agregar productos desde el Admin.
 </div>
 {% endif %}
 {% endif %}
@@ -75,4 +181,5 @@
 <style>
     input, select, textarea { width: 100%; padding: 0.5rem; }
 </style>
+
 {% endblock %}

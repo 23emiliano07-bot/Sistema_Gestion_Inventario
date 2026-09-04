@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Almacenes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>🏢 Almacenes</h1>
+    <a href="{% url 'crear_almacen' %}" class="btn btn-primary">+ Nuevo Almacén</a>
+</div>
+
+{% if almacenes %}
+<table class="table table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>Nombre</th>
+            <th>Ubicación</th>
+            <th>Descripción</th>
+            <th>Fecha Creación</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for almacen in almacenes %}
+        <tr>
+            <td><strong>{{ almacen.nombre }}</strong></td>
+            <td>{{ almacen.ubicacion }}</td>
+            <td>{{ almacen.descripcion|truncatewords:10 }}</td>
+            <td>{{ almacen.fecha_creacion|date:"d/m/Y" }}</td>
+            <td>
+                <a href="{% url 'editar_almacen' almacen.id %}" class="btn btn-sm btn-warning">Editar</a>
+                <a href="{% url 'eliminar_almacen' almacen.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No hay almacenes aún. <a href="{% url 'crear_almacen' %}">Crear uno</a></div>
+{% endif %}
+{% endblock %}

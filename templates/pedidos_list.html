@@ -14,7 +14,6 @@
             <th>Número Pedido</th>
             <th>Proveedor</th>
             <th>Fecha Pedido</th>
-            <th>Fecha Entrega</th>
             <th>Estado</th>
             <th>Acciones</th>
         </tr>
@@ -25,7 +24,6 @@
             <td><strong>{{ pedido.numero_pedido }}</strong></td>
             <td>{{ pedido.proveedor }}</td>
             <td>{{ pedido.fecha_pedido|date:"d/m/Y" }}</td>
-            <td>{{ pedido.fecha_entrega|date:"d/m/Y" }}</td>
             <td><span class="badge bg-info">{{ pedido.estado }}</span></td>
             <td>
                 <a href="{% url 'editar_pedido' pedido.id %}" class="btn btn-sm btn-warning">Editar</a>
