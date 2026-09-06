@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Back Orders{% endblock %}
+
+{% block content %}
+<h1>📦 Back Orders</h1>
+
+<div class="table-responsive">
+    <table class="table table-striped mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>Proveedor</th>
+                <th>Orden Compra</th>
+                <th>Producto</th>
+                <th>Almacén</th>
+                <th>Cantidad</th>
+                <th>Entregado</th>
+                <th>Resuelto</th>
+                <th>Fecha Creación</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for backorder in backorders %}
+            <tr>
+                <td>{{ backorder.pedido.proveedor }}</td>
+                <td>{{ backorder.orden_compra }}</td>
+                <td>{{ backorder.producto.nombre }}</td>
+                <td>{{ backorder.almacen.nombre }}</td>
+                <td>{{ backorder.cantidad }}</td>
+                <td>{{ backorder.entregado }}</td>
+                <td>{% if backorder.resuelto %}✅{% else %}❌{% endif %}</td>
+                <td>{{ backorder.fecha_creacion }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

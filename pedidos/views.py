@@ -198,3 +198,13 @@ def eliminar_almacen(request, almacen_id):
     almacen = get_object_or_404(Almacen, id=almacen_id)
     almacen.delete()
     return redirect('listar_almacenes')
+
+@login_required(login_url='admin:login')
+@permission_required('pedidos.view_backorder', raise_exception=True)
+def listar_backorders(request):
+    backorders = BackOrder.objects.all().select_related('pedido', 'producto', 'almacen')
+    return render(request, 'backorders_list.html', {'backorders': backorders})
+
+def home(request):
+    return render(request, 'home.html')
+ 

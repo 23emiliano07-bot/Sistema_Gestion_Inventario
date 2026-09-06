@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import TemplateView
+from pedidos import views as pedidos_views
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -26,12 +26,12 @@ admin.site.site_title = "Inventario Emi"
 admin.site.index_title = "Bienvenido al Panel de Administración"
 
 urlpatterns = [
-    path('', TemplateView.as_view(template_name='base.html'), name='home'),
+    path('', pedidos_views.home, name='home'),  # ← Raíz va a home
     path('admin/', admin.site.urls),
     path('proveedores/', include('proveedores.urls')),
     path('productos/', include('productos.urls')),
     path('usuarios/', include('usuarios.urls')),
-    path('pedidos/', include('pedidos.urls')),
+    path('pedidos/', include('pedidos.urls')),  # ← /pedidos/ va a pedidos.urls
 ]
 
 # Servir archivos media en desarrollo
