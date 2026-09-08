@@ -51,9 +51,8 @@ class ProductoAdmin(admin.ModelAdmin):
                         try:
                             Producto.objects.create(
                                 nombre=row[0].strip(),
-                                precio=row[1].strip(),
-                                categoria=row[2].strip().upper(),
-                                disponible=True
+                                categoria=row[1].strip().upper(),
+                                descripcion=row[2].strip()
                             )
                             contador += 1
                         except Exception as e:
