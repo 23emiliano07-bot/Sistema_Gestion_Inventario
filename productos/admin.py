@@ -16,7 +16,7 @@ class CsvImportForm(forms.Form):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre', 'precio', 'categoria', 'disponible')
+    list_display = ('id', 'nombre', 'categoria', 'disponible')
     list_filter = ('categoria', 'disponible')
     search_fields = ('nombre',)
     change_list_template = "admin/productos_change_list.html"

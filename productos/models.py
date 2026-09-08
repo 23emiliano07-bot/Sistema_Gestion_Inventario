@@ -10,13 +10,7 @@ class Producto(models.Model):
     """Modelo para gestionar Productos"""
     nombre = models.CharField(max_length=150, unique=True)
     descripcion = models.TextField(blank=True, null=True)
-    precio = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2,
-        validators=[validar_precio_positivo]  # ← VALIDACIÓN AGREGADA
-    )
     categoria = models.CharField(max_length=100, blank=True, null=True)
-    stock = models.IntegerField(default=0)
     disponible = models.BooleanField(default=True)
     
     # Multimedia (imagen)

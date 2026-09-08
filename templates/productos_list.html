@@ -31,9 +31,7 @@
                 </p>
                 {% endif %}
                 
-                <p class="card-text text-muted small">
-                    <strong>Stock:</strong> {{ producto.stock }} unidades
-                </p>
+                
                 
                 {% if producto.descripcion %}
                 <p class="card-text small">{{ producto.descripcion|truncatewords:15 }}</p>
@@ -41,7 +39,7 @@
                 
                 <hr>
                 
-                <h4 class="text-success mb-3">${{ producto.precio }}</h4>
+                
                 
                 <div class="d-flex gap-2 mt-auto">
                     <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning flex-grow-1">✏️ Editar</a>

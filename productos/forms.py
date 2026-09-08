@@ -4,11 +4,9 @@ from .models import Producto
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['nombre', 'precio', 'stock', 'categoria', 'descripcion', 'disponible', 'imagen']
+        fields = ['nombre', 'categoria', 'descripcion', 'disponible', 'imagen']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del producto'}),
-            'precio': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 99.99', 'step': '0.01'}),
-            'stock': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cantidad disponible', 'min': '0'}),
             'categoria': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Categoría'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción del producto'}),
             'disponible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
