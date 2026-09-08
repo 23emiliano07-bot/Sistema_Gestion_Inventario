@@ -13,6 +13,7 @@
         <tr>
             <th>Número Pedido</th>
             <th>Proveedor</th>
+            <th>Orden de Compra</th>
             <th>Fecha Pedido</th>
             <th>Estado</th>
             <th>Acciones</th>
@@ -23,6 +24,7 @@
         <tr>
             <td><strong>{{ pedido.numero_pedido }}</strong></td>
             <td>{{ pedido.proveedor }}</td>
+            <td>{{ pedido.orden_compra }}</td>
             <td>{{ pedido.fecha_pedido|date:"d/m/Y" }}</td>
             <td><span class="badge bg-info">{{ pedido.estado }}</span></td>
             <td>

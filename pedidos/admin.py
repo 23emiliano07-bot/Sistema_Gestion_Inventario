@@ -1,11 +1,18 @@
 from django.contrib import admin
 from .models import Pedido, DetallesPedido, BackOrder, Almacen
+from productos.models import Producto
 
 class DetallesPedidoInline(admin.TabularInline):
     model = DetallesPedido
     extra = 1
     fields = ('producto', 'almacen', 'cantidad', 'precio_unitario', 'recibido', 'pendiente', 'folio_factura')
     readonly_fields = ('precio_unitario',)
+    raw_id_fields = ('producto',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'producto':
+            kwargs['queryset'] = Producto.objects.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     def get_readonly_fields(self, request, obj=None):
         readonly = ['precio_unitario']

@@ -207,4 +207,4 @@ def listar_backorders(request):
 
 def home(request):
     return render(request, 'home.html')
- 
+
