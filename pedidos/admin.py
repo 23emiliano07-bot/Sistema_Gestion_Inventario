@@ -6,7 +6,7 @@ class DetallesPedidoInline(admin.TabularInline):
     model = DetallesPedido
     extra = 1
     fields = ('producto', 'almacen', 'cantidad', 'precio_unitario', 'recibido', 'pendiente', 'folio_factura')
-    readonly_fields = ('precio_unitario',)
+    readonly_fields = ('precio_unitario','pendiente')
     raw_id_fields = ('producto',)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -17,7 +17,7 @@ class DetallesPedidoInline(admin.TabularInline):
     def get_readonly_fields(self, request, obj=None):
         readonly = ['precio_unitario']
         if obj and obj.estado != 'entregado':
-            readonly.extend(['recibido', 'pendiente', 'folio_factura'])
+            readonly.extend(['recibido','pendiente', 'folio_factura', ])
         return readonly
 
 @admin.register(Almacen)

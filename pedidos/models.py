@@ -82,6 +82,16 @@ class DetallesPedido(models.Model):
     def __str__(self):
         return f"{self.pedido.numero_pedido} - {self.producto.nombre} - {self.almacen.nombre if self.almacen else 'Sin almacén'}"
 
+    def save(self, *args, **kwargs):
+    # Calcular pendiente automáticamente
+        self.pendiente = int(self.cantidad) - int(self.recibido)
+    
+    # Si pendiente es negativo, ponerlo en 0
+        if self.pendiente < 0:
+            self.pendiente = 0
+    
+        super().save(*args, **kwargs)
+   
 class BackOrder(models.Model):
     """Para productos pendientes (cantidades faltantes)"""
     pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='backorders')

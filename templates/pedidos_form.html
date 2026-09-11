@@ -141,7 +141,7 @@
             <input type="number" name="recibido_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.recibido }}" min="0">
         </td>
         <td>
-            <input type="number" name="pendiente_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.pendiente }}" min="0">
+            <input type="number" name="pendiente_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.pendiente }}" readonly>
         </td>
         <td>
             <input type="text" name="folio_{{ detalle.id }}" class="form-control form-control-sm" value="{{ detalle.folio_factura|default:'' }}">
