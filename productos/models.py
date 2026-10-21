@@ -24,6 +24,22 @@ class Producto(models.Model):
         ordering = ['nombre']
         verbose_name = 'Producto'
         verbose_name_plural = 'Productos'
+
+    def clean(self):
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
+            duplicado = Producto.objects.filter(
+                nombre__iexact=self.nombre
+            ).exclude(pk=self.pk)
+            if duplicado.exists():
+                raise ValidationError(
+                    {'nombre': 'Ya existe un producto con este nombre.'}
+                )
+
+    def save(self, *args, **kwargs):
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return self.nombre

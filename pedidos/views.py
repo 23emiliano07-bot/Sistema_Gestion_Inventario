@@ -78,6 +78,7 @@ def editar_pedido(request, pedido_id):
                     if not created:
                         backorder.entregado = detalle.recibido
                         backorder.cantidad = detalle.cantidad
+                        backorder.orden_compra = pedido.orden_compra
                         backorder.save()
                 else:
                     BackOrder.objects.filter(

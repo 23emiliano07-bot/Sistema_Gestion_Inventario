@@ -101,7 +101,7 @@ class BackOrder(models.Model):
     cantidad = models.IntegerField()
     entregado = models.IntegerField(default=0)
     resuelto = models.BooleanField(default=False)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_creacion = models.DateTimeField(auto_now=True)
     
     class Meta:
         verbose_name_plural = "Back Orders"
