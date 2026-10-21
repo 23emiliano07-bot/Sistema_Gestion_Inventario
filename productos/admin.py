@@ -7,12 +7,17 @@ from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from .models import Producto
+from .models import Producto, Categoria
 from .serializers import ProductoSerializer
 from .forms import ProductoForm
 
 class CsvImportForm(forms.Form):
     csv_file = forms.FileField(label="Selecciona un archivo CSV")
+
+@admin.register(Categoria)
+class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'nombre')
+    search_fields = ('nombre',)
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
@@ -49,9 +54,15 @@ class ProductoAdmin(admin.ModelAdmin):
                 for row in csv.reader(io_string, delimiter=','):
                     if row and len(row) >= 3:
                         try:
+                            categoria = None
+                            nombre_cat = row[1].strip().upper()
+                            if nombre_cat:
+                                categoria, _ = Categoria.objects.get_or_create(
+                                    nombre=nombre_cat
+                                )
                             Producto.objects.create(
                                 nombre=row[0].strip(),
-                                categoria=row[1].strip().upper(),
+                                categoria=categoria,
                                 descripcion=row[2].strip()
                             )
                             contador += 1

@@ -6,11 +6,30 @@ def validar_precio_positivo(value):
     if value <= 0:
         raise ValidationError('El precio debe ser un número mayor a cero.')
 
+class Categoria(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = 'Categoría'
+        verbose_name_plural = 'Categorías'
+
+    def clean(self):
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
+
+    def save(self, *args, **kwargs):
+        self.nombre = self.nombre.strip().upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
+
 class Producto(models.Model):
     """Modelo para gestionar Productos"""
     nombre = models.CharField(max_length=150, unique=True)
     descripcion = models.TextField(blank=True, null=True)
-    categoria = models.CharField(max_length=100, blank=True, null=True)
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT,null=True, blank=True)
     disponible = models.BooleanField(default=True)
     
     # Multimedia (imagen)
