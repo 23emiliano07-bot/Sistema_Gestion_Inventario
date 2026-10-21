@@ -3,6 +3,7 @@ import io
 import csv
 from django.contrib import admin
 from django import forms
+from django.db import transaction
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib import messages
@@ -35,48 +36,78 @@ class ProductoAdmin(admin.ModelAdmin):
         return custom_urls + urls
     
     def importar_csv(self, request):
-        """Vista para importar productos desde CSV"""
+        """Importa productos desde CSV: nombre, categoria, descripcion"""
         if request.method == "POST":
             form = CsvImportForm(request.POST, request.FILES)
             if form.is_valid():
                 csv_file = request.FILES['csv_file']
-                if not csv_file.name.endswith('.csv'):
+                if not csv_file.name.lower().endswith('.csv'):
                     messages.error(request, 'El archivo debe tener extensión .csv')
                     return redirect('.')
-                
-                data_set = csv_file.read().decode('UTF-8')
-                io_string = io.StringIO(data_set)
-                next(io_string, None)  # Omitir encabezados
-                
-                contador = 0
-                errores = 0
-                
-                for row in csv.reader(io_string, delimiter=','):
-                    if row and len(row) >= 3:
-                        try:
-                            categoria = None
-                            nombre_cat = row[1].strip().upper()
-                            if nombre_cat:
-                                categoria, _ = Categoria.objects.get_or_create(
-                                    nombre=nombre_cat
-                                )
+
+                # Acepta UTF-8 (Google Sheets) y ANSI (Excel)
+                contenido = csv_file.read()
+                try:
+                    texto = contenido.decode('utf-8-sig')
+                except UnicodeDecodeError:
+                    texto = contenido.decode('latin-1')
+
+                reader = csv.reader(io.StringIO(texto))
+                next(reader, None)  # Omitir encabezados
+
+                existentes = {n.upper() for n in Producto.objects.values_list('nombre', flat=True)}
+                categorias = {c.nombre: c for c in Categoria.objects.all()}
+
+                cargados = 0
+                omitidos, errores, nuevas_cat = [], [], []
+
+                for num, row in enumerate(reader, start=2):
+                    if not row or not row[0].strip():
+                        continue  # fila vacía
+                    if len(row) < 3:
+                        errores.append(f'Fila {num}: faltan columnas')
+                        continue
+
+                    nombre = row[0].strip().upper()
+                    if nombre in existentes:
+                        omitidos.append(nombre)
+                        continue
+
+                    categoria = None
+                    nombre_cat = row[1].strip().upper()
+                    if nombre_cat:
+                        categoria = categorias.get(nombre_cat)
+                        if not categoria:
+                            categoria = Categoria.objects.create(nombre=nombre_cat)
+                            categorias[nombre_cat] = categoria
+                            nuevas_cat.append(nombre_cat)
+
+                    try:
+                        with transaction.atomic():
                             Producto.objects.create(
-                                nombre=row[0].strip(),
+                                nombre=nombre,
                                 categoria=categoria,
-                                descripcion=row[2].strip()
+                                descripcion=row[2].strip(),
                             )
-                            contador += 1
-                        except Exception as e:
-                            errores += 1
-                            messages.warning(request, f'Error en fila: {e}')
-                
-                messages.success(request, f'✅ Se cargaron {contador} productos correctamente!')
-                if errores > 0:
-                    messages.warning(request, f'⚠️ {errores} filas tuvieron errores')
+                        existentes.add(nombre)
+                        cargados += 1
+                    except Exception as e:
+                        errores.append(f'Fila {num} ({nombre}): {e}')
+
+                # Resumen
+                messages.success(request, f'✅ {cargados} productos cargados.')
+                if omitidos:
+                    lista = ', '.join(omitidos[:10]) + ('...' if len(omitidos) > 10 else '')
+                    messages.info(request, f'⏭️ {len(omitidos)} ya existían y se omitieron: {lista}')
+                if nuevas_cat:
+                    messages.warning(request, f'🆕 Categorías nuevas creadas: {", ".join(nuevas_cat)}. Revisa que estén bien escritas.')
+                if errores:
+                    lista = ' | '.join(errores[:10]) + (' ...' if len(errores) > 10 else '')
+                    messages.error(request, f'⚠️ {len(errores)} filas con error: {lista}')
                 return redirect('..')
         else:
             form = CsvImportForm()
-        
+
         context = {
             'form': form,
             'title': 'Importar Productos (CSV)',
@@ -86,3 +117,4 @@ class ProductoAdmin(admin.ModelAdmin):
             'change': False,
         }
         return render(request, "admin/productos_import_csv.html", context)
+

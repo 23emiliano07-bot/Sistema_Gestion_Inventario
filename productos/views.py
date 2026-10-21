@@ -4,8 +4,8 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
 
-from .models import Producto
-# TODO: Resolver import circular - from .dao.producto_dao import ProductoDAO
+from django.core.paginator import Paginator
+from .models import Producto, Categoria
 from .serializers import ProductoSerializer
 from .forms import ProductoForm
 
@@ -13,8 +13,29 @@ from .forms import ProductoForm
 @login_required(login_url='admin:login')
 @permission_required('productos.view_producto', raise_exception=True)
 def listar_productos(request):
-    productos = Producto.objects.all()
-    return render(request, 'productos_list.html', {'productos': productos})
+    productos = Producto.objects.select_related('categoria')
+
+    # Filtro por categoría
+    categoria_id = request.GET.get('categoria', '')
+    if categoria_id:
+        productos = productos.filter(categoria_id=categoria_id)
+
+    # Búsqueda por nombre o descripción
+    buscar = request.GET.get('buscar', '').strip()
+    if buscar:
+        productos = productos.filter(nombre__icontains=buscar) | \
+                    productos.filter(descripcion__icontains=buscar)
+
+    # Paginación: 24 por página
+    paginator = Paginator(productos, 24)
+    pagina = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'productos_list.html', {
+        'productos': pagina,
+        'categorias': Categoria.objects.all(),
+        'categoria_id': categoria_id,
+        'buscar': buscar,
+    })
 
 @login_required(login_url='admin:login')
 @permission_required('productos.add_producto', raise_exception=True)
