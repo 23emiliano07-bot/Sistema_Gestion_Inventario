@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Pedido, DetallesPedido, BackOrder, Almacen
+from .models import Pedido, DetallesPedido, BackOrder, Almacen, BackOrderInterno
+from django import forms
+from django.contrib import messages
+from .historial import registrar, registrar_exportacion
 from productos.models import Producto
 
 import datetime
@@ -45,15 +48,15 @@ def generar_excel(nombre, encabezados, filas):
 @admin.action(description='📥 Exportar a Excel')
 def exportar_pedidos(modeladmin, request, queryset):
     encabezados = ['Pedido', 'Proveedor', 'Estado', 'Fecha', 'Orden compra', 'Orden venta',
-                   'Responsable', 'Producto', 'Descripción', 'Almacén', 'Cantidad',
+                   'Responsable', 'Recibió', 'Producto', 'Descripción', 'Almacén', 'Cantidad',
                    'Recibido', 'Pendiente', 'Folio factura']
     filas = []
-    pedidos = queryset.select_related('proveedor', 'responsable').prefetch_related(
+    pedidos = queryset.select_related('proveedor', 'responsable', 'responsable_recibio').prefetch_related(
         'detalles__producto', 'detalles__almacen')
     for p in pedidos:
         base = [p.numero_pedido, p.proveedor.nombre, p.get_estado_display(),
                 _fecha(p.fecha_pedido), p.orden_compra or '', p.orden_venta or '',
-                str(p.responsable or '')]
+                str(p.responsable or ''), str(p.responsable_recibio or '')]
         detalles = list(p.detalles.all())
         if not detalles:
             filas.append(base + [''] * 7)
@@ -64,6 +67,7 @@ def exportar_pedidos(modeladmin, request, queryset):
                 str(d.almacen or ''), d.cantidad, d.recibido, d.pendiente,
                 d.folio_factura or '',
             ])
+    registrar_exportacion(request, queryset, 'Pedidos')
     return generar_excel('Pedidos', encabezados, filas)
 
 
@@ -80,32 +84,53 @@ def exportar_backorders(modeladmin, request, queryset):
             str(b.almacen or ''), b.cantidad, b.entregado, b.cantidad - b.entregado,
             'Sí' if b.resuelto else 'No', _fecha(b.fecha_creacion),
         ])
+    registrar_exportacion(request, queryset, 'Back Orders')
     return generar_excel('BackOrders', encabezados, filas)
+    
+
+class DetallesPedidoInlineForm(forms.ModelForm):
+    # Casilla solo del formulario (no se guarda en la base de datos)
+    pendiente_orden = forms.BooleanField(required=False, label='Pendiente orden')
+
+    class Meta:
+        model = DetallesPedido
+        fields = '__all__'
+
 
 class DetallesPedidoInline(admin.TabularInline):
     model = DetallesPedido
+    form = DetallesPedidoInlineForm
     extra = 1
-    fields = ('producto', 'almacen', 'cantidad', 'precio_unitario', 'recibido', 'pendiente', 'folio_factura')
-    readonly_fields = ('precio_unitario','pendiente')
     raw_id_fields = ('producto',)
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'producto':
-            kwargs['queryset'] = Producto.objects.all()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-    
+    def get_fields(self, request, obj=None):
+        campos = ['producto', 'almacen', 'cantidad']
+        if obj and obj.estado == 'confirmado':
+            campos.append('pendiente_orden')   # en lugar de Precio unitario
+        return campos + ['recibido', 'pendiente', 'folio_factura']
+
     def get_readonly_fields(self, request, obj=None):
-        readonly = ['precio_unitario']
+        readonly = []
+        # En Solicitado y Entregado ya no se cambian los productos
+        if obj and obj.estado in ('solicitado', 'entregado'):
+            readonly += ['producto', 'almacen', 'cantidad']
+        # Recibido, Pendiente y Folio solo se editan en Entregado
         if obj and obj.estado != 'entregado':
-            readonly.extend(['recibido','pendiente', 'folio_factura', ])
+            readonly += ['recibido', 'pendiente', 'folio_factura']
         return readonly
-    
+
     def has_delete_permission(self, request, obj=None):
         # Solo se pueden quitar productos en estado Pendiente
         if obj is None or obj.estado == 'pendiente':
             return super().has_delete_permission(request, obj)
         return False
 
+    def has_add_permission(self, request, obj=None):
+        # Solo se pueden agregar productos en estado Pendiente
+        if obj is None or obj.estado == 'pendiente':
+            return super().has_add_permission(request, obj)
+        return False
+    
 @admin.register(Almacen)
 class AlmacenAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'ubicacion', 'fecha_creacion')
@@ -120,17 +145,77 @@ class PedidoAdmin(admin.ModelAdmin):
     actions = [exportar_pedidos]
     
     def get_readonly_fields(self, request, obj=None):
-        readonly = []
-        if obj:
-            if obj.estado == 'pendiente':
-                readonly = ['orden_compra', 'orden_venta', 'responsable', 'numero_pedido', 'proveedor']
-            elif obj.estado == 'confirmado':
-                readonly = ['responsable', 'numero_pedido', 'proveedor']
-            elif obj.estado == 'solicitado':
-                readonly = ['numero_pedido', 'proveedor', 'orden_compra', 'orden_venta']
-            elif obj.estado == 'entregado':
-                readonly = ['numero_pedido', 'proveedor', 'orden_compra', 'orden_venta', 'responsable', 'estado']
-        return readonly
+        if obj is None:
+            return ['responsable_recibio']
+        if obj.estado == 'pendiente':
+            return ['orden_compra', 'orden_venta', 'responsable', 'numero_pedido',
+                    'proveedor', 'responsable_recibio']
+        if obj.estado == 'confirmado':
+            return ['responsable', 'numero_pedido', 'proveedor', 'orden_venta',
+                    'responsable_recibio']
+        if obj.estado == 'solicitado':
+            return ['numero_pedido', 'proveedor', 'orden_compra', 'responsable_recibio']
+        if obj.estado == 'entregado':
+            return ['numero_pedido', 'proveedor', 'orden_compra', 'orden_venta',
+                    'responsable', 'estado']
+        return []
+    
+    SIGUIENTE = {
+        'pendiente': 'confirmado',
+        'confirmado': 'solicitado',
+        'solicitado': 'entregado',
+    }
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'estado' in form.base_fields:
+            if obj is None:
+                permitidos = ['pendiente']
+            else:
+                permitidos = [obj.estado]
+                if obj.estado in self.SIGUIENTE:
+                    permitidos.append(self.SIGUIENTE[obj.estado])
+            campo = form.base_fields['estado']
+            campo.choices = [(k, v) for k, v in campo.choices if k in permitidos]
+        return form
+
+    def save_model(self, request, obj, form, change):
+        anterior = Pedido.objects.get(pk=obj.pk).estado if change else None
+        super().save_model(request, obj, form, change)
+        if change and anterior != obj.estado:
+            nombres = dict(Pedido._meta.get_field('estado').choices)
+            registrar(request, obj, f'Estado: {nombres.get(anterior)} → {nombres.get(obj.estado)} (Admin)')
+    
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not DetallesPedido:
+            return super().save_formset(request, form, formset, change)
+
+        # Productos marcados como "Pendiente orden"
+        mover = [
+            f.instance for f in formset.forms
+            if f.instance.pk
+            and f.cleaned_data.get('pendiente_orden')
+            and not f.cleaned_data.get('DELETE')
+        ]
+        super().save_formset(request, form, formset, change)
+
+        pedido = form.instance
+        for d in mover:
+            BackOrderInterno.objects.create(
+                pedido_origen=pedido,
+                proveedor=pedido.proveedor,
+                numero_pedido=pedido.numero_pedido,
+                orden_compra=pedido.orden_compra,
+                producto=d.producto,
+                almacen=d.almacen,
+                cantidad=d.cantidad,
+                creado_por=request.user,
+            )
+            registrar(request, pedido, f'Movió a Back Order Interno: {d.producto.nombre} ({d.cantidad})')   # ← NUEVA
+            d.delete()
+
+        if mover:
+            messages.info(request, f'📦 {len(mover)} producto(s) movido(s) a Back Order Interno.')
 
 @admin.register(DetallesPedido)
 class DetallesPedidoAdmin(admin.ModelAdmin):
@@ -152,3 +237,99 @@ class BackOrderAdmin(admin.ModelAdmin):
     def get_proveedor(self, obj):
         return obj.pedido.proveedor
     get_proveedor.short_description = 'Proveedor'
+
+@admin.action(description='📥 Exportar a Excel')
+def exportar_backorders_internos(modeladmin, request, queryset):
+    encabezados = ['Proveedor', 'Pedido origen', 'Orden compra', 'Producto', 'Descripción',
+                   'Almacén', 'Cantidad', 'Recibido', 'Pendiente', 'Folio factura',
+                   'Resuelto', 'Creado por', 'Fecha']
+    filas = []
+    for b in queryset.select_related('proveedor', 'producto', 'almacen', 'creado_por'):
+        filas.append([
+            b.proveedor.nombre if b.proveedor else '', b.numero_pedido,
+            b.orden_compra or '', b.producto.nombre, b.producto.descripcion or '',
+            str(b.almacen or ''), b.cantidad, b.recibido, b.pendiente,
+            b.folio_factura or '', 'Sí' if b.resuelto else 'No',
+            str(b.creado_por or ''), _fecha(b.fecha_creacion),
+        ])
+    registrar_exportacion(request, queryset, 'Back Orders Internos')
+    return generar_excel('BackOrdersInternos', encabezados, filas)
+
+
+@admin.action(description='↩️ Regresar al pedido')
+def regresar_al_pedido(modeladmin, request, queryset):
+    regresados, omitidos = 0, []
+    for b in queryset.select_related('pedido_origen', 'producto'):
+        p = b.pedido_origen
+        # Solo si el pedido sigue en Confirmado y el BOI no está resuelto
+        if not p or p.estado != 'confirmado' or b.resuelto:
+            omitidos.append(f'{b.producto.nombre} ({b.numero_pedido})')
+            continue
+        detalle, creado = DetallesPedido.objects.get_or_create(
+            pedido=p, producto=b.producto, almacen=b.almacen,
+            defaults={'cantidad': b.cantidad},
+        )
+        if not creado:   # si ya estaba en el pedido, se suma la cantidad
+            detalle.cantidad += b.cantidad
+            detalle.save()
+        registrar(request, p, f'Regresó del Back Order Interno: {b.producto.nombre} ({b.cantidad})')    
+        b.delete()
+        regresados += 1
+
+    if regresados:
+        messages.success(request, f'↩️ {regresados} producto(s) regresado(s) a su pedido.')
+    if omitidos:
+        messages.warning(request, '⚠️ No se regresaron (el pedido ya no está en Confirmado '
+                                  'o el back order está resuelto): ' + ', '.join(omitidos))
+
+
+@admin.register(BackOrderInterno)
+class BackOrderInternoAdmin(admin.ModelAdmin):
+    list_display = ('proveedor', 'numero_pedido', 'orden_compra', 'producto', 'almacen',
+                    'cantidad', 'recibido', 'pendiente', 'folio_factura', 'resuelto',
+                    'fecha_creacion')
+    list_filter = ('resuelto', 'proveedor', 'almacen', 'fecha_creacion')
+    search_fields = ('producto__nombre', 'numero_pedido', 'orden_compra', 'proveedor__nombre')
+    fields = ('pedido_origen', 'proveedor', 'numero_pedido', 'orden_compra', 'producto',
+              'almacen', 'cantidad', 'recibido', 'pendiente', 'folio_factura', 'resuelto',
+              'creado_por', 'fecha_creacion', 'fecha_actualizacion')
+    readonly_fields = ('pedido_origen', 'proveedor', 'numero_pedido', 'orden_compra',
+                       'producto', 'almacen', 'cantidad', 'pendiente', 'creado_por',
+                       'fecha_creacion', 'fecha_actualizacion')
+    actions = [exportar_backorders_internos, regresar_al_pedido]
+
+    def has_add_permission(self, request):
+        # Solo se crean desde un pedido (casilla "Pendiente orden")
+        return False
+
+from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
+
+
+@admin.register(LogEntry)
+class HistorialAdmin(admin.ModelAdmin):
+    list_display = ('action_time', 'user', 'accion', 'content_type', 'object_repr', 'detalle')
+    list_filter = ('user', 'action_flag', 'content_type', 'action_time')
+    search_fields = ('object_repr', 'change_message', 'user__username')
+    date_hierarchy = 'action_time'
+    list_per_page = 50
+
+    def accion(self, obj):
+        if (obj.change_message or '').startswith('📥'):
+            return '📥 Exportó'
+        return {ADDITION: '➕ Agregó', CHANGE: '✏️ Modificó',
+                DELETION: '🗑️ Eliminó'}.get(obj.action_flag, '')
+    accion.short_description = 'Acción'
+
+    def detalle(self, obj):
+        return obj.get_change_message()
+    detalle.short_description = 'Detalle'
+
+    # Solo lectura: nadie puede crear, editar ni borrar el historial
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

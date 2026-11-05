@@ -33,6 +33,10 @@ class Pedido(models.Model):
     orden_compra = models.CharField(max_length=100, blank=True, null=True)
     orden_venta = models.CharField(max_length=100, blank=True, null=True)
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='pedidos_solicitados')
+    responsable_recibio = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pedidos_recibidos', verbose_name='Responsable recibió'
+    )
     
     class Meta:
         ordering = ['-fecha_pedido']
@@ -108,3 +112,34 @@ class BackOrder(models.Model):
     
     def __str__(self):
         return f"BO - {self.pedido.numero_pedido} - {self.producto.nombre}"
+    
+class BackOrderInterno(models.Model):
+    """Productos que el proveedor no tenía al confirmar el pedido"""
+    pedido_origen = models.ForeignKey(Pedido, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='backorders_internos')
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)
+    numero_pedido = models.CharField(max_length=50, blank=True)
+    orden_compra = models.CharField(max_length=100, blank=True, null=True)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    almacen = models.ForeignKey(Almacen, on_delete=models.SET_NULL, null=True, blank=True)
+    cantidad = models.IntegerField()
+    recibido = models.IntegerField(default=0)
+    pendiente = models.IntegerField(default=0)
+    folio_factura = models.CharField(max_length=100, blank=True, null=True)
+    resuelto = models.BooleanField(default=False)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Back Order Interno'
+        verbose_name_plural = 'Back Orders Internos'
+        ordering = ['resuelto', '-fecha_creacion']
+
+    def save(self, *args, **kwargs):
+        # Pendiente se calcula solo; "Resuelto" se marca a mano
+        self.pendiente = max(int(self.cantidad) - int(self.recibido), 0)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"BOI - {self.numero_pedido} - {self.producto.nombre}"

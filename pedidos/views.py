@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
 from .models import Pedido, DetallesPedido, BackOrder, Almacen
 from .serializers import PedidoSerializer, BackOrderSerializer
 from .forms import PedidoForm, AlmacenForm
+from django.contrib.admin.models import ADDITION, DELETION
+from .historial import registrar
 
 @login_required(login_url='admin:login')
 @permission_required('pedidos.view_pedido', raise_exception=True)
@@ -19,50 +21,67 @@ def crear_pedido(request):
     if request.method == 'POST':
         form = PedidoForm(request.POST)
         if form.is_valid():
-            form.save()
+            pedido = form.save()
+            registrar(request, pedido, 'Creó el pedido', ADDITION)
             return redirect('listar_pedidos')
     else:
         form = PedidoForm()
     return render(request, 'pedidos_form.html', {'form': form})
 
+def _registrar_cambios(request, pedido, form, estado_anterior, antes):
+    """Arma el mensaje del historial con lo que cambió."""
+    cambios = []
+    nombres = dict(Pedido._meta.get_field('estado').choices)
+    if estado_anterior != pedido.estado:
+        cambios.append(f'Estado: {nombres.get(estado_anterior)} → {nombres.get(pedido.estado)}')
+    otros = [str(form.fields[c].label or c) for c in form.changed_data if c != 'estado']
+    if otros:
+        cambios.append('Modificó: ' + ', '.join(otros))
+    for d in pedido.detalles.select_related('producto'):
+        rec_ant, folio_ant = antes.get(d.id, (0, ''))
+        if int(d.recibido) != int(rec_ant):
+            cambios.append(f'{d.producto.nombre}: recibido {rec_ant} → {d.recibido}')
+        if (d.folio_factura or '') != folio_ant:
+            cambios.append(f'{d.producto.nombre}: folio "{d.folio_factura or ""}"')
+    if cambios:
+        registrar(request, pedido, ' | '.join(cambios))
+
+
 @login_required(login_url='admin:login')
 @permission_required('pedidos.change_pedido', raise_exception=True)
 def editar_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
+    # Cómo estaba ANTES de guardar (para el historial)
+    estado_anterior = pedido.estado
+    antes = {d.id: (d.recibido, d.folio_factura or '') for d in pedido.detalles.all()}
+
     if request.method == 'POST':
         form = PedidoForm(request.POST, instance=pedido)
-        print("Form errors:", form.errors)
         if form.is_valid():
-            print("POST data:", request.POST)
             form.save()
-            
+
             # Si el estado cambió a entregado, inicializar pendiente = cantidad
             if pedido.estado == 'entregado':
-                detalles = pedido.detalles.all()
-                for detalle in detalles:
+                for detalle in pedido.detalles.all():
                     if detalle.pendiente == 0:
                         detalle.pendiente = detalle.cantidad
                         detalle.save()
-            
+
             # Procesa los valores de Recibido, Pendiente, Folio
-            detalles = pedido.detalles.all()
-            for detalle in detalles:
+            for detalle in pedido.detalles.all():
                 recibido_key = f'recibido_{detalle.id}'
                 pendiente_key = f'pendiente_{detalle.id}'
                 folio_key = f'folio_{detalle.id}'
-                
                 if recibido_key in request.POST:
                     detalle.recibido = request.POST.get(recibido_key, 0)
                 if pendiente_key in request.POST:
                     detalle.pendiente = request.POST.get(pendiente_key, 0)
                 if folio_key in request.POST:
                     detalle.folio_factura = request.POST.get(folio_key, '')
-                
                 detalle.save()
-            
+
             # Crear o actualizar BackOrder automáticamente
-            detalles = pedido.detalles.all()
-            for detalle in detalles:
+            for detalle in pedido.detalles.all():
                 if detalle.pendiente > 0:
                     backorder, created = BackOrder.objects.get_or_create(
                         pedido=pedido,
@@ -86,17 +105,23 @@ def editar_pedido(request, pedido_id):
                         producto=detalle.producto,
                         almacen=detalle.almacen
                     ).delete()
-            
+
+            # Historial
+            _registrar_cambios(request, pedido, form, estado_anterior, antes)
             return redirect('listar_pedidos')
     else:
         form = PedidoForm(instance=pedido)
-    
+
     detalles = pedido.detalles.all()
     return render(request, 'pedidos_form.html', {
-        'form': form, 
+        'form': form,
         'pedido': pedido,
         'detalles': detalles
     })
+
+
+
+
 """
 @login_required(login_url='admin:login')
 @permission_required('pedidos.change_pedido', raise_exception=True)
@@ -149,6 +174,7 @@ def editar_pedido(request, pedido_id):
 @permission_required('pedidos.delete_pedido', raise_exception=True)
 def eliminar_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
+    registrar(request, pedido, 'Eliminó el pedido (desde la página)', DELETION)
     pedido.delete()
     return redirect('listar_pedidos')
 

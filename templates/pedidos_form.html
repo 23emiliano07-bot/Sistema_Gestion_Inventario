@@ -62,13 +62,13 @@
     
     <div class="col-md-6 mb-3">
         <label class="form-label">Orden de Venta</label>
-        {% if not form.instance.pk or form.instance.estado == 'pendiente' %}
-            <input type="text" class="form-control" placeholder="Se habilitará en Confirmado" disabled>
-        {% elif form.instance.pk and form.instance.estado == 'confirmado' %}
+
+        {% if form.instance.estado == 'solicitado' %}
             {{ form.orden_venta }}
+        {% elif form.instance.orden_venta %}
+            <input type="text" class="form-control" value="{{ form.instance.orden_venta }}" readonly>
         {% else %}
-            <input type="text" class="form-control" value="{{ form.instance.orden_venta|default:'' }}" readonly>
-            <input type="hidden" name="orden_venta" value="{{ form.instance.orden_venta|default:'' }}">
+            <input type="text" class="form-control" placeholder="Se habilitará en Solicitado" disabled>
         {% endif %}
     </div>
 </div>
@@ -89,7 +89,15 @@
         {{ form.responsable }}
     {% endif %}
 </div>
-    
+
+      <!-- Responsable recibió (solo en Entregado) -->
+{% if form.instance.estado == 'entregado' %}
+<div class="mb-3">
+    <label class="form-label">Responsable recibió</label>
+    {{ form.responsable_recibio }}
+</div>
+{% endif %}
+     
 
     <!-- Notas -->
     <div class="mb-3">
@@ -108,6 +116,12 @@
 {% if form.instance.pk %}
 <hr>
 <h3 class="mt-4">📦 Productos del Pedido</h3>
+{% if form.instance.estado == 'confirmado' %}
+<div class="alert alert-info mt-3">
+    ℹ️ Si requieres actualizar algún producto, ve a
+    <a href="/admin/pedidos/pedido/{{ form.instance.id }}/change/" target="_blank">Admin</a>.
+</div>
+{% endif %}
 
 {% if detalles %}
 <div class="table-responsive">
@@ -173,7 +187,8 @@
 
 {% else %}
 <div class="alert alert-warning mt-3">
-    No hay productos en este pedido. Guarda primero para agregar productos desde el Admin.
+    No hay productos en este pedido. Guarda primero para agregar productos desde el
+    <a href="/admin/pedidos/pedido/{{ form.instance.id }}/change/" target="_blank">Admin</a>.
 </div>
 {% endif %}
 {% endif %}

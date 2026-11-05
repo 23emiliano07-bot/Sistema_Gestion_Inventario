@@ -6,7 +6,7 @@ from .models import Pedido, DetallesPedido, BackOrder, Almacen
 class PedidoForm(forms.ModelForm):
     class Meta:
         model = Pedido
-        fields = ['numero_pedido', 'proveedor', 'estado', 'orden_compra', 'orden_venta', 'responsable', 'notas']
+        fields = ['numero_pedido', 'proveedor', 'estado', 'orden_compra', 'orden_venta', 'responsable', 'notas', 'responsable_recibio' ]
         widgets = {
             'numero_pedido': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: FPA250726'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
@@ -15,6 +15,7 @@ class PedidoForm(forms.ModelForm):
             'orden_venta': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: OV-2026-001'}),
             'responsable': forms.Select(attrs={'class': 'form-control'}),
             'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Notas adicionales (opcional)'}),
+            'responsable_recibio': forms.Select(attrs={'class': 'form-control'}),
         }
 
 
@@ -44,6 +45,11 @@ class PedidoForm(forms.ModelForm):
                 choice for choice in self.fields['estado'].choices 
                 if choice[0] in opciones_validas
         ]
+        # Bloquear Orden de compra / venta según el estado
+        estado_actual = self.instance.estado if self.instance.pk else 'pendiente'
+        self.fields['orden_compra'].disabled = estado_actual != 'confirmado'
+        self.fields['orden_venta'].disabled = estado_actual != 'solicitado'
+        self.fields['responsable_recibio'].disabled = estado_actual != 'entregado'
     
     
     def clean_numero_pedido(self):
