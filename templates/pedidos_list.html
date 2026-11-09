@@ -7,7 +7,53 @@
     <a href="{% url 'crear_pedido' %}" class="btn btn-primary">+ Nuevo Pedido</a>
 </div>
 
+<!-- Filtros -->
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Número pedido</label>
+        <input type="text" name="numero" value="{{ f.numero }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Proveedor</label>
+        <select name="proveedor" class="form-select">
+            <option value="">Todos</option>
+            {% for p in proveedores %}
+            <option value="{{ p.id }}" {% if p.id|stringformat:"s" == f.proveedor %}selected{% endif %}>{{ p.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Orden de compra</label>
+        <input type="text" name="orden_compra" value="{{ f.orden_compra }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Estado</label>
+        <select name="estado" class="form-select">
+            <option value="">Todos</option>
+            {% for valor, nombre in estados %}
+            <option value="{{ valor }}" {% if valor == f.estado %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Fecha desde</label>
+        <input type="date" name="desde" value="{{ f.desde }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Fecha hasta</label>
+        <input type="date" name="hasta" value="{{ f.hasta }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <button type="submit" class="btn btn-dark w-100">🔍 Filtrar</button>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{% url 'listar_pedidos' %}" class="btn btn-outline-secondary w-100">✖ Limpiar</a>
+    </div>
+</form>
+<p class="text-muted small">{{ pedidos|length }} pedido(s) encontrado(s)</p>
+
 {% if pedidos %}
+<div class="table-responsive">
 <table class="table table-striped">
     <thead class="table-dark">
         <tr>
@@ -24,9 +70,18 @@
         <tr>
             <td><strong>{{ pedido.numero_pedido }}</strong></td>
             <td>{{ pedido.proveedor }}</td>
-            <td>{{ pedido.orden_compra }}</td>
+            <td>{{ pedido.orden_compra|default:'' }}</td>
             <td>{{ pedido.fecha_pedido|date:"d/m/Y" }}</td>
-            <td><span class="badge bg-info">{{ pedido.estado }}</span></td>
+            <td>
+                <span class="badge
+                    {% if pedido.estado == 'pendiente' %}bg-secondary
+                    {% elif pedido.estado == 'confirmado' %}bg-primary
+                    {% elif pedido.estado == 'solicitado' %}bg-info
+                    {% elif pedido.estado == 'entregado' %}bg-warning text-dark
+                    {% else %}bg-success{% endif %}">
+                    {{ pedido.get_estado_display }}
+                </span>
+            </td>
             <td>
                 <a href="{% url 'editar_pedido' pedido.id %}" class="btn btn-sm btn-warning">Editar</a>
                 <a href="{% url 'eliminar_pedido' pedido.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar?')">Eliminar</a>
@@ -35,7 +90,8 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% else %}
-<div class="alert alert-info">No hay pedidos aún. <a href="{% url 'crear_pedido' %}">Crear uno</a></div>
+<div class="alert alert-info">No se encontraron pedidos. <a href="{% url 'listar_pedidos' %}">Ver todos</a></div>
 {% endif %}
 {% endblock %}

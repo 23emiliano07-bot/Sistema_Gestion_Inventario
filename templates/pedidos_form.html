@@ -24,7 +24,7 @@
         
         <div class="col-md-6 mb-3">
     <label for="{{ form.estado.id_for_label }}" class="form-label">Estado</label>
-    {% if form.instance.pk and form.instance.estado == 'entregado' %}
+    {% if form.instance.estado == 'entregado' or form.instance.estado == 'finalizado' %}
         <input type="text" class="form-control" value="{{ form.instance.get_estado_display }}" readonly>
         <input type="hidden" name="estado" value="{{ form.instance.estado }}">
     {% else %}
@@ -82,7 +82,7 @@
         <input type="text" class="form-control" placeholder="Se habilitará en Solicitado" disabled>
     {% elif form.instance.pk and form.instance.estado == 'solicitado' %}
         {{ form.responsable }}
-    {% elif form.instance.pk and form.instance.estado == 'entregado' %}
+    {% elif form.instance.estado == 'entregado' or form.instance.estado == 'finalizado' %}
         <input type="text" class="form-control" value="{{ form.instance.responsable }}" readonly>
         <input type="hidden" name="responsable" value="{{ form.instance.responsable.id|default:'' }}">
     {% else %}
@@ -91,7 +91,7 @@
 </div>
 
       <!-- Responsable recibió (solo en Entregado) -->
-{% if form.instance.estado == 'entregado' %}
+{% if form.instance.estado == 'entregado' or form.instance.estado == 'finalizado' %}
 <div class="mb-3">
     <label class="form-label">Responsable recibió</label>
     {{ form.responsable_recibio }}
@@ -107,7 +107,11 @@
 
     <!-- Botones -->
 <div class="d-flex gap-2">
-    <button type="submit" class="btn btn-success">💾 Guardar</button>
+    {% if form.instance.estado == 'finalizado' %}
+        <span class="alert alert-success py-2 mb-0">✅ Pedido finalizado: todo fue recibido.</span>
+    {% else %}
+        <button type="submit" class="btn btn-success">💾 Guardar</button>
+    {% endif %}
     <a href="{% url 'listar_pedidos' %}" class="btn btn-secondary">❌ Cancelar</a>
     
 </div>
@@ -132,7 +136,7 @@
                 <th>Producto</th>
                 <th>Almacén</th>
                 <th>Total a Pedir</th>
-                {% if form.instance.estado == 'entregado' %}
+                {% if form.instance.estado == 'entregado' or form.instance.estado == 'finalizado' %}
                     <th>Recibido</th>
                     <th>Pendiente</th>
                     <th>Folio de Factura</th>
@@ -148,7 +152,7 @@
                 <td>{{ detalle.cantidad }}</td>
 
 
- {% if form.instance.estado == 'entregado' %}
+ {% if form.instance.estado == 'entregado' or form.instance.estado == 'finalizado' %}
     {% if detalle.pendiente > 0 %}
         <!-- Fila EDITABLE si pendiente > 0 -->
         <td>

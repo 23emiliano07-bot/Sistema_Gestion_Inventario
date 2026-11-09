@@ -23,6 +23,7 @@ class Pedido(models.Model):
         ('confirmado', 'Confirmado'),
         ('solicitado', 'Solicitado'),
         ('entregado', 'Entregado'),
+        ('finalizado', 'Finalizado'),
     ]
     
     numero_pedido = models.CharField(max_length=50, unique=True)
@@ -43,6 +44,17 @@ class Pedido(models.Model):
     
     def __str__(self):
         return f"{self.numero_pedido} - {self.proveedor.nombre}"
+
+    def revisar_finalizado(self):
+        """Si está Entregado y ya no hay nada pendiente, pasa a Finalizado."""
+        if self.estado != 'entregado':
+            return False
+        detalles = self.detalles.all()
+        if detalles.exists() and not detalles.filter(pendiente__gt=0).exists():
+            self.estado = 'finalizado'
+            self.save(update_fields=['estado'])
+            return True
+        return False
     
     @property
     def total(self):

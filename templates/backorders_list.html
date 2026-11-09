@@ -2,36 +2,93 @@
 {% block title %}Back Orders{% endblock %}
 
 {% block content %}
-<h1>📦 Back Orders</h1>
+<h1 class="mb-4">📦 Back Orders</h1>
 
-<div class="table-responsive">
-    <table class="table table-striped mt-3">
-        <thead class="table-dark">
-            <tr>
-                <th>Proveedor</th>
-                <th>Orden Compra</th>
-                <th>Producto</th>
-                <th>Almacén</th>
-                <th>Cantidad</th>
-                <th>Entregado</th>
-                <th>Resuelto</th>
-                <th>Fecha Creación</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for backorder in backorders %}
-            <tr>
-                <td>{{ backorder.pedido.proveedor }}</td>
-                <td>{{ backorder.orden_compra }}</td>
-                <td>{{ backorder.producto.nombre }}</td>
-                <td>{{ backorder.almacen.nombre }}</td>
-                <td>{{ backorder.cantidad }}</td>
-                <td>{{ backorder.entregado }}</td>
-                <td>{% if backorder.resuelto %}✅{% else %}❌{% endif %}</td>
-                <td>{{ backorder.fecha_creacion }}</td>
-            </tr>
+<!-- Filtros -->
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Proveedor</label>
+        <select name="proveedor" class="form-select">
+            <option value="">Todos</option>
+            {% for p in proveedores %}
+            <option value="{{ p.id }}" {% if p.id|stringformat:"s" == f.proveedor %}selected{% endif %}>{{ p.nombre }}</option>
             {% endfor %}
-        </tbody>
-    </table>
+        </select>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Orden de compra</label>
+        <input type="text" name="orden_compra" value="{{ f.orden_compra }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Producto</label>
+        <input type="text" name="producto" value="{{ f.producto }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Almacén</label>
+        <select name="almacen" class="form-select">
+            <option value="">Todos</option>
+            {% for a in almacenes %}
+            <option value="{{ a.id }}" {% if a.id|stringformat:"s" == f.almacen %}selected{% endif %}>{{ a.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Resuelto</label>
+        <select name="resuelto" class="form-select">
+            <option value="">Todos</option>
+            <option value="no" {% if f.resuelto == 'no' %}selected{% endif %}>❌ No resuelto</option>
+            <option value="si" {% if f.resuelto == 'si' %}selected{% endif %}>✅ Resuelto</option>
+        </select>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Fecha desde</label>
+        <input type="date" name="desde" value="{{ f.desde }}" class="form-control">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-0">Fecha hasta</label>
+        <input type="date" name="hasta" value="{{ f.hasta }}" class="form-control">
+    </div>
+    <div class="col-3 col-md-1">
+        <button type="submit" class="btn btn-dark w-100" title="Filtrar">🔍</button>
+    </div>
+    <div class="col-3 col-md-2">
+        <a href="{% url 'listar_backorders' %}" class="btn btn-outline-secondary w-100">✖ Limpiar</a>
+    </div>
+</form>
+<p class="text-muted small">{{ backorders|length }} back order(s) encontrado(s)</p>
+
+{% if backorders %}
+<div class="table-responsive">
+<table class="table table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>Proveedor</th>
+            <th>Orden Compra</th>
+            <th>Producto</th>
+            <th>Almacén</th>
+            <th>Cantidad</th>
+            <th>Entregado</th>
+            <th>Resuelto</th>
+            <th>Fecha Creación</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in backorders %}
+        <tr>
+            <td>{{ b.pedido.proveedor }}</td>
+            <td>{{ b.orden_compra|default:'' }}</td>
+            <td>{{ b.producto.nombre }}</td>
+            <td>{{ b.almacen|default:'' }}</td>
+            <td>{{ b.cantidad }}</td>
+            <td>{{ b.entregado }}</td>
+            <td>{% if b.resuelto %}✅{% else %}❌{% endif %}</td>
+            <td>{{ b.fecha_creacion|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 </div>
+{% else %}
+<div class="alert alert-info">No se encontraron back orders. <a href="{% url 'listar_backorders' %}">Ver todos</a></div>
+{% endif %}
 {% endblock %}

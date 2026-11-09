@@ -111,8 +111,8 @@ class DetallesPedidoInline(admin.TabularInline):
 
     def get_readonly_fields(self, request, obj=None):
         readonly = []
-        # En Solicitado y Entregado ya no se cambian los productos
-        if obj and obj.estado in ('solicitado', 'entregado'):
+        # En Solicitado, Entregado y Finalizado ya no se cambian los productos
+        if obj and obj.estado in ('solicitado', 'entregado', 'finalizado'):
             readonly += ['producto', 'almacen', 'cantidad']
         # Recibido, Pendiente y Folio solo se editan en Entregado
         if obj and obj.estado != 'entregado':
@@ -158,6 +158,9 @@ class PedidoAdmin(admin.ModelAdmin):
         if obj.estado == 'entregado':
             return ['numero_pedido', 'proveedor', 'orden_compra', 'orden_venta',
                     'responsable', 'estado']
+        if obj.estado == 'finalizado':
+            return ['numero_pedido', 'proveedor', 'estado', 'notas', 'orden_compra',
+                    'orden_venta', 'responsable', 'responsable_recibio']
         return []
     
     SIGUIENTE = {
@@ -216,6 +219,11 @@ class PedidoAdmin(admin.ModelAdmin):
 
         if mover:
             messages.info(request, f'📦 {len(mover)} producto(s) movido(s) a Back Order Interno.')
+
+        # Si todo está recibido (pendiente 0), pasa a Finalizado
+        if pedido.revisar_finalizado():
+            registrar(request, pedido, 'Estado: Entregado → Finalizado (automático)')
+            messages.success(request, '✅ El pedido pasó a Finalizado: todo fue recibido.')
 
 @admin.register(DetallesPedido)
 class DetallesPedidoAdmin(admin.ModelAdmin):

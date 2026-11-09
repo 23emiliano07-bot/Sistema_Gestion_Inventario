@@ -38,6 +38,7 @@ class PedidoForm(forms.ModelForm):
                 'confirmado': ['confirmado', 'solicitado'],
                 'solicitado': ['solicitado', 'entregado'],
                 'entregado': ['entregado'],
+                'finalizado': ['finalizado'],
             }
         
             opciones_validas = estados_validos.get(estado_actual, [])
@@ -50,6 +51,11 @@ class PedidoForm(forms.ModelForm):
         self.fields['orden_compra'].disabled = estado_actual != 'confirmado'
         self.fields['orden_venta'].disabled = estado_actual != 'solicitado'
         self.fields['responsable_recibio'].disabled = estado_actual != 'entregado'
+
+        # Finalizado: todo bloqueado
+        if estado_actual == 'finalizado':
+            for campo in self.fields.values():
+                campo.disabled = True
     
     
     def clean_numero_pedido(self):

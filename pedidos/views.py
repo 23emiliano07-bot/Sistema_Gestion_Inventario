@@ -8,12 +8,31 @@ from .serializers import PedidoSerializer, BackOrderSerializer
 from .forms import PedidoForm, AlmacenForm
 from django.contrib.admin.models import ADDITION, DELETION
 from .historial import registrar
+from proveedores.models import Proveedor
 
 @login_required(login_url='admin:login')
 @permission_required('pedidos.view_pedido', raise_exception=True)
 def listar_pedidos(request):
-    pedidos = Pedido.objects.all()
-    return render(request, 'pedidos_list.html', {'pedidos': pedidos})
+    pedidos = Pedido.objects.select_related('proveedor')
+    f = request.GET
+    if f.get('numero'):
+        pedidos = pedidos.filter(numero_pedido__icontains=f['numero'].strip())
+    if f.get('proveedor'):
+        pedidos = pedidos.filter(proveedor_id=f['proveedor'])
+    if f.get('orden_compra'):
+        pedidos = pedidos.filter(orden_compra__icontains=f['orden_compra'].strip())
+    if f.get('estado'):
+        pedidos = pedidos.filter(estado=f['estado'])
+    if f.get('desde'):
+        pedidos = pedidos.filter(fecha_pedido__date__gte=f['desde'])
+    if f.get('hasta'):
+        pedidos = pedidos.filter(fecha_pedido__date__lte=f['hasta'])
+    return render(request, 'pedidos_list.html', {
+        'pedidos': pedidos,
+        'estados': Pedido.ESTADOS,
+        'proveedores': Proveedor.objects.order_by('nombre'),
+        'f': f,
+    })
 
 @login_required(login_url='admin:login')
 @permission_required('pedidos.add_pedido', raise_exception=True)
@@ -56,6 +75,8 @@ def editar_pedido(request, pedido_id):
     antes = {d.id: (d.recibido, d.folio_factura or '') for d in pedido.detalles.all()}
 
     if request.method == 'POST':
+        if pedido.estado == 'finalizado':              # ← NUEVA
+            return redirect('listar_pedidos')          # ← NUEVA
         form = PedidoForm(request.POST, instance=pedido)
         if form.is_valid():
             form.save()
@@ -105,6 +126,9 @@ def editar_pedido(request, pedido_id):
                         producto=detalle.producto,
                         almacen=detalle.almacen
                     ).delete()
+
+            # Si todo está recibido (pendiente 0), pasa a Finalizado
+            pedido.revisar_finalizado()
 
             # Historial
             _registrar_cambios(request, pedido, form, estado_anterior, antes)
@@ -229,8 +253,30 @@ def eliminar_almacen(request, almacen_id):
 @login_required(login_url='admin:login')
 @permission_required('pedidos.view_backorder', raise_exception=True)
 def listar_backorders(request):
-    backorders = BackOrder.objects.all().select_related('pedido', 'producto', 'almacen')
-    return render(request, 'backorders_list.html', {'backorders': backorders})
+    backorders = BackOrder.objects.select_related('pedido__proveedor', 'producto', 'almacen')
+    f = request.GET
+    if f.get('proveedor'):
+        backorders = backorders.filter(pedido__proveedor_id=f['proveedor'])
+    if f.get('orden_compra'):
+        backorders = backorders.filter(orden_compra__icontains=f['orden_compra'].strip())
+    if f.get('producto'):
+        backorders = backorders.filter(producto__nombre__icontains=f['producto'].strip())
+    if f.get('almacen'):
+        backorders = backorders.filter(almacen_id=f['almacen'])
+    if f.get('resuelto') == 'si':
+        backorders = backorders.filter(resuelto=True)
+    elif f.get('resuelto') == 'no':
+        backorders = backorders.filter(resuelto=False)
+    if f.get('desde'):
+        backorders = backorders.filter(fecha_creacion__date__gte=f['desde'])
+    if f.get('hasta'):
+        backorders = backorders.filter(fecha_creacion__date__lte=f['hasta'])
+    return render(request, 'backorders_list.html', {
+        'backorders': backorders,
+        'proveedores': Proveedor.objects.order_by('nombre'),
+        'almacenes': Almacen.objects.order_by('nombre'),
+        'f': f,
+    })
 
 def home(request):
     return render(request, 'home.html')
