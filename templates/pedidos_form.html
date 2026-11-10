@@ -129,7 +129,7 @@
 
 {% if detalles %}
 <div class="table-responsive">
-    <table class="table table-striped mt-3">
+    <table class="table table-striped table-sm mt-3 tabla-recepcion">
         <thead class="table-dark">
             <tr>
                 <th>No</th>
@@ -198,7 +198,13 @@
 {% endif %}
 
 <style>
-    input, select, textarea { width: 100%; padding: 0.5rem; }
+    input, select, textarea { width: 100%; }
+    .tabla-recepcion input { padding: .15rem .35rem; }
+    .tabla-recepcion input[type=number] { max-width: 90px; }
+    @media (max-width: 576px) {
+        .tabla-recepcion { font-size: .8rem; }
+        .tabla-recepcion th, .tabla-recepcion td { padding: .3rem; }
+    }
 </style>
 
 {% endblock %}
