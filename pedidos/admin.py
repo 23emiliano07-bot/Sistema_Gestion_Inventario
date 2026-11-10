@@ -8,8 +8,14 @@ from productos.models import Producto
 import datetime
 from django.http import HttpResponse
 from django.utils import timezone
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
+import unicodedata
+from django.urls import path
+from django.shortcuts import render, redirect
+from django.db import transaction
+from django.contrib.admin.models import ADDITION
+from proveedores.models import Proveedor
 
 
 def _fecha(f):
@@ -136,6 +142,17 @@ class AlmacenAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'ubicacion', 'fecha_creacion')
     search_fields = ('nombre',)
 
+class ExcelImportForm(forms.Form):
+    archivo = forms.FileField(label='Archivo de Excel (.xlsx)')
+
+
+def _normalizar(texto):
+    """Quita acentos y mayúsculas para comparar encabezados."""
+    t = unicodedata.normalize('NFKD', str(texto or '')).encode('ascii', 'ignore').decode()
+    return t.strip().lower()
+
+
+
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
     list_display = ('numero_pedido', 'proveedor', 'estado', 'fecha_pedido')
@@ -143,6 +160,7 @@ class PedidoAdmin(admin.ModelAdmin):
     search_fields = ('numero_pedido', 'proveedor__nombre')
     inlines = [DetallesPedidoInline]
     actions = [exportar_pedidos]
+    change_list_template = 'admin/pedidos_change_list.html'
     
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
@@ -224,6 +242,138 @@ class PedidoAdmin(admin.ModelAdmin):
         if pedido.revisar_finalizado():
             registrar(request, pedido, 'Estado: Entregado → Finalizado (automático)')
             messages.success(request, '✅ El pedido pasó a Finalizado: todo fue recibido.')
+
+    def get_urls(self):
+        urls = super().get_urls()
+        propias = [
+            path('importar-excel/', self.admin_site.admin_view(self.importar_excel),
+                 name='pedido_importar_excel'),
+        ]
+        return propias + urls
+
+    def importar_excel(self, request):
+        if request.method == 'POST':
+            form = ExcelImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                try:
+                    pedido, resueltos = self._crear_pedido_desde_excel(request, request.FILES['archivo'])
+                except ValueError as e:
+                    messages.error(request, f'❌ No se importó nada. {e}')
+                    return redirect('.')
+                messages.success(request,
+                    f'✅ Pedido {pedido.numero_pedido} creado en Pendiente con '
+                    f'{pedido.detalles.count()} producto(s). '
+                    f'{resueltos} Back Order(s) Interno(s) marcados como resueltos.')
+                return redirect(f'../{pedido.pk}/change/')
+        else:
+            form = ExcelImportForm()
+        context = {
+            **self.admin_site.each_context(request),
+            'form': form,
+            'title': 'Importar pedido desde Excel',
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/pedidos_import_excel.html', context)
+
+    def _crear_pedido_desde_excel(self, request, archivo):
+        if not archivo.name.lower().endswith('.xlsx'):
+            raise ValueError('El archivo debe ser de Excel (.xlsx).')
+        try:
+            hoja = load_workbook(archivo, data_only=True).active
+        except Exception:
+            raise ValueError('No se pudo leer el archivo de Excel.')
+
+        filas = list(hoja.iter_rows(values_only=True))
+        if not filas:
+            raise ValueError('El archivo está vacío.')
+
+        # Ubicar las columnas por su nombre
+        encabezados = [_normalizar(c) for c in filas[0]]
+        requeridas = {'proveedor': 'Proveedor', 'pedido origen': 'Pedido origen',
+                      'producto': 'Producto', 'almacen': 'Almacén', 'cantidad': 'Cantidad'}
+        faltan = [nombre for clave, nombre in requeridas.items() if clave not in encabezados]
+        if faltan:
+            raise ValueError('Faltan columnas: ' + ', '.join(faltan))
+        col = {clave: encabezados.index(clave) for clave in requeridas}
+
+        def valor(fila, clave):
+            i = col[clave]
+            v = fila[i] if i < len(fila) else None
+            return '' if v is None else str(v).strip()
+
+        datos = []
+        for num, fila in enumerate(filas[1:], start=2):
+            if not fila or all(v in (None, '') for v in fila):
+                continue  # fila vacía
+            datos.append((num, valor(fila, 'proveedor'), valor(fila, 'pedido origen'),
+                          valor(fila, 'producto'), valor(fila, 'almacen'), valor(fila, 'cantidad')))
+        if not datos:
+            raise ValueError('El archivo no tiene productos.')
+
+        # Un solo proveedor y un solo número de pedido
+        provs = {d[1].upper() for d in datos}
+        if len(provs) != 1:
+            raise ValueError('El archivo trae más de un proveedor: ' + ', '.join(sorted(provs)))
+        numeros = {d[2].upper() for d in datos}
+        if len(numeros) != 1:
+            raise ValueError('"Pedido origen" debe tener el mismo número en todas las filas.')
+        numero = numeros.pop()
+        if len(numero) < 5:
+            raise ValueError('El número de pedido debe tener al menos 5 caracteres.')
+
+        proveedor = Proveedor.objects.filter(nombre__iexact=datos[0][1]).first()
+        if not proveedor:
+            raise ValueError(f'No existe el proveedor "{datos[0][1]}".')
+        if Pedido.objects.filter(numero_pedido__iexact=numero).exists():
+            raise ValueError(f'Ya existe un pedido con el número "{numero}".')
+
+        # Revisar productos, almacenes y cantidades
+        errores, renglones = [], {}
+        for num, _, _, prod, alm, cant in datos:
+            problemas = []
+            producto = Producto.objects.filter(nombre__iexact=prod).first()
+            almacen = Almacen.objects.filter(nombre__iexact=alm).first() if alm else None
+            if not producto:
+                problemas.append(f'fila {num}: el producto "{prod}" no existe')
+            if alm and not almacen:
+                problemas.append(f'fila {num}: el almacén "{alm}" no existe')
+            try:
+                cantidad = int(float(cant))
+            except ValueError:
+                cantidad = 0
+            if cantidad <= 0:
+                problemas.append(f'fila {num}: la cantidad "{cant}" no es válida')
+            if problemas:
+                errores += problemas
+                continue
+            clave = (producto.pk, almacen.pk if almacen else None)
+            if clave in renglones:
+                renglones[clave][2] += cantidad   # repetido: se suma
+            else:
+                renglones[clave] = [producto, almacen, cantidad]
+        if errores:
+            raise ValueError('Errores: ' + ' | '.join(errores[:15]) + (' ...' if len(errores) > 15 else ''))
+
+        # Crear todo (o nada)
+        with transaction.atomic():
+            pedido = Pedido.objects.create(numero_pedido=numero, proveedor=proveedor,
+                                           estado='pendiente')
+            resueltos = 0
+            for producto, almacen, cantidad in renglones.values():
+                DetallesPedido.objects.create(pedido=pedido, producto=producto,
+                                              almacen=almacen, cantidad=cantidad)
+                resueltos += BackOrderInterno.objects.filter(
+                    resuelto=False, proveedor=proveedor, producto=producto, almacen=almacen,
+                ).update(resuelto=True)
+            registrar(request, pedido,
+                      f'Creó el pedido desde Excel con {len(renglones)} producto(s); '
+                      f'resolvió {resueltos} Back Order(s) Interno(s)', ADDITION)
+        return pedido, resueltos
+
+
+
+
+
 
 @admin.register(DetallesPedido)
 class DetallesPedidoAdmin(admin.ModelAdmin):

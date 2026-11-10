@@ -7,12 +7,16 @@ class ProductoForm(forms.ModelForm):
         fields = ['nombre', 'categoria', 'descripcion', 'disponible', 'imagen']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del producto'}),
-            'categoria': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Categoría'}),
+            'categoria': forms.Select(attrs={'class': 'form-select'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción del producto'}),
             'disponible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'imagen': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
-    
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['categoria'].empty_label = 'Selecciona una categoría'
+
     def clean_precio(self):
         """Valida que el precio sea mayor a cero"""
         precio = self.cleaned_data.get('precio')

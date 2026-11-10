@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>📤 Importar pedido desde Excel</h1>
+<p>El archivo (.xlsx) debe tener las columnas:
+   <strong>Proveedor, Pedido origen, Producto, Almacén, Cantidad</strong>.</p>
+<ul>
+    <li><strong>Pedido origen</strong> = número del pedido <strong>nuevo</strong> (igual en todas las filas).</li>
+    <li>Un solo proveedor por archivo.</li>
+    <li>El pedido se crea en <strong>Pendiente</strong>.</li>
+</ul>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Importar" class="default">
+</form>
+{% endblock %}
