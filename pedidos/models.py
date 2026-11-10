@@ -45,17 +45,35 @@ class Pedido(models.Model):
     def __str__(self):
         return f"{self.numero_pedido} - {self.proveedor.nombre}"
 
+    def sincronizar_backorders(self):
+        """Crea/actualiza BackOrders de lo pendiente y borra los ya completos."""
+        for d in self.detalles.all():
+            filtro = dict(pedido=self, producto=d.producto, almacen=d.almacen)
+            if d.pendiente > 0:
+                bo, creado = BackOrder.objects.get_or_create(
+                    **filtro,
+                    defaults={'orden_compra': self.orden_compra, 'cantidad': d.cantidad,
+                              'entregado': d.recibido, 'resuelto': False},
+                )
+                if not creado:
+                    bo.entregado = d.recibido
+                    bo.cantidad = d.cantidad
+                    bo.orden_compra = self.orden_compra
+                    bo.save()
+            else:
+                BackOrder.objects.filter(**filtro).delete()
+
     def revisar_finalizado(self):
-        """Si está Entregado y ya no hay nada pendiente, pasa a Finalizado."""
+        """Actualiza BackOrders y, si ya no hay nada pendiente, pasa a Finalizado."""
         if self.estado != 'entregado':
             return False
+        self.sincronizar_backorders()
         detalles = self.detalles.all()
         if detalles.exists() and not detalles.filter(pendiente__gt=0).exists():
             self.estado = 'finalizado'
             self.save(update_fields=['estado'])
             return True
         return False
-    
     @property
     def total(self):
         """Calcula el total sumando todos los detalles"""
